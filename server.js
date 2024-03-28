@@ -193,6 +193,31 @@ router.route('/movies/:title')
         });
     });
 
+router.route('/reviews')
+    .get((req, res) => {
+        // Find all reviews
+        Review.find({}, (err, reviews) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: 'Failed to retrieve reviews.', error: err });
+            }
+            if (!reviews || reviews.length === 0) {
+                return res.status(404).json({ success: false, message: 'No reviews found.' });
+            }
+            // Return the found reviews
+            return res.status(200).json({ success: true, reviews: reviews });
+        });
+    })
+    // post has authentication
+    .post(authJwtController.isAuthenticated, (req, res) => {
+        try {
+            // Create a new review using the request body
+            const newReview = Review.create(req.body);
+            res.status(201).json({ message: 'Review created!', review: newReview });
+        } catch (error) {
+            res.status(400).json({ message: error.message });
+        }
+    })
+
 app.use('/', router);
 app.listen(process.env.PORT || 8080);
 module.exports = app; // for testing only
