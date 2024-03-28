@@ -3,7 +3,6 @@ CSC3916 HW4
 File: Server.js
 Description: Web API scaffolding for Movie API
  */
-
 var express = require('express');
 var bodyParser = require('body-parser');
 var passport = require('passport');
@@ -13,7 +12,6 @@ var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var User = require('./Users');
 var Movie = require('./Movies');
-var Review = require('./Reviews');
 
 var app = express();
 app.use(cors());
@@ -86,6 +84,114 @@ router.post('/signin', function (req, res) {
         })
     })
 });
+
+router.route('/movies')
+    .get(authJwtController.isAuthenticated, (req, res) => {
+        /*
+        var o = getJSONObjectForMovieRequirement(req);
+        o.status = 200;
+        o.message = "GET movies";
+        res.json(o);
+        */
+       // finding all movies
+        Movie.find({}, (err, movies) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
+            }
+            if (!movies || movies.length === 0) {
+                return res.status(404).json({ success: false, message: 'No movies found.' });
+            }
+            // Return the found movies
+            return res.status(200).json({ success: true, movies: movies });
+        });
+    })
+    .post(authJwtController.isAuthenticated, async (req, res) => {
+        /*
+        var o = getJSONObjectForMovieRequirement(req);
+        o.status = 200;
+        o.message = "movie saved";
+        res.json(o);
+        */
+        try {
+            const newMovie = await Movie.create(req.body); // Create a new movie using the request body
+            res.status(201).json(newMovie); // Respond with the created movie and status code 201 (Created)
+        } catch (error) {
+            res.status(400).json({ message: error.message }); // Respond with an error if something goes wrong
+        }
+    })
+    .put(authJwtController.isAuthenticated, (req, res) => {
+        // HTTP PUT Method
+        // Requires JWT authentication.
+        // Returns a JSON object with status, message, headers, query, and env.
+        var o = getJSONObjectForMovieRequirement(req);
+        o.status = 200;
+        o.message = "movie updated";
+        res.json(o);
+    })
+    .delete(authJwtController.isAuthenticated, (req, res) => {
+        // HTTP DELETE Method
+        // Requires Basic authentication.
+        // Returns a JSON object with status, message, headers, query, and env.
+        var o = getJSONObjectForMovieRequirement(req);
+        o.status = 200;
+        o.message = "movie deleted";
+        res.json(o);
+    })
+    .all((req, res) => {
+        // Any other HTTP Method
+        // Returns a message stating that the HTTP method is unsupported.
+        res.status(405).send({ message: 'HTTP method not supported.' });
+    });
+
+router.route('/movies/:title')
+    // getting a specific movie
+    .get(authJwtController.isAuthenticated, (req, res) => {
+        // Retrieve the movie based on the title parameter
+        Movie.findOne({ title: req.params.title }, (err, movie) => {
+            if (err) {
+                return res.status(500).send({ message: 'Internal server error' });
+            }
+            if (!movie) {
+                return res.status(404).send({ message: 'Movie not found' });
+            }
+            // Return the found movie
+            res.status(200).send({ movie });
+        });
+    })
+    .post(authJwtController.isAuthenticated, (req, res) => {
+        var o = getJSONObjectForMovieRequirement(req);
+        o.status = 200;
+        o.message = "movie with title posted";
+        res.json(o);
+    })
+    // PUT (Update) a specific movie
+    .put(authJwtController.isAuthenticated, (req, res) => {
+        // Update the movie based on the title parameter
+        Movie.findOneAndUpdate({ title: req.params.title }, req.body, { new: true }, (err, movie) => {
+            if (err) {
+                return res.status(500).send({ message: 'Internal server error' });
+            }
+            if (!movie) {
+                return res.status(404).send({ message: 'Movie not found' });
+            }
+            // Return the updated movie
+            res.status(200).send({ movie });
+        });
+    })
+    // DELETE a specific movie
+    .delete(authJwtController.isAuthenticated, (req, res) => {
+        // Delete the movie based on the title parameter
+        Movie.findOneAndDelete({ title: req.params.title }, (err, movie) => {
+            if (err) {
+                return res.status(500).send({ message: 'Internal server error' });
+            }
+            if (!movie) {
+                return res.status(404).send({ message: 'Movie not found' });
+            }
+            // Return a success message
+            res.status(200).send({ message: 'Movie deleted successfully' });
+        });
+    });
 
 app.use('/', router);
 app.listen(process.env.PORT || 8080);
