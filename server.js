@@ -94,16 +94,42 @@ router.route('/movies')
         res.json(o);
         */
        // finding all movies
-        Movie.find({}, (err, movies) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
-            }
-            if (!movies || movies.length === 0) {
-                return res.status(404).json({ success: false, message: 'No movies found.' });
-            }
-            // Return the found movies
-            return res.status(200).json({ success: true, movies: movies });
-        });
+       const { reviews } = req.query;
+
+       if (reviews === 'true') {
+           // If the user wants reviews included
+           Movie.aggregate([
+               {
+                   $lookup: {
+                       from: "reviews", // name of the reviews collection
+                       localField: "_id", // field in the movies collection
+                       foreignField: "movieId", // field in the reviews collection
+                       as: "reviews" // output array where the joined reviews will be placed
+                   }
+               }
+           ]).exec((err, moviesWithReviews) => {
+               if (err) {
+                   return res.status(500).json({ success: false, message: 'Failed to aggregate movies with reviews.', error: err });
+               }
+               if (!moviesWithReviews || moviesWithReviews.length === 0) {
+                   return res.status(404).json({ success: false, message: 'No movies found with reviews.' });
+               }
+               // Return the found movies with reviews
+               return res.status(200).json({ success: true, moviesWithReviews: moviesWithReviews });
+           });
+       } else {
+           // If the user doesn't want reviews included, proceed with regular movie retrieval
+           Movie.find({}, (err, movies) => {
+               if (err) {
+                   return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
+               }
+               if (!movies || movies.length === 0) {
+                   return res.status(404).json({ success: false, message: 'No movies found.' });
+               }
+               // Return the found movies
+               return res.status(200).json({ success: true, movies: movies });
+           });
+       }
     })
     .post(authJwtController.isAuthenticated, async (req, res) => {
         /*
