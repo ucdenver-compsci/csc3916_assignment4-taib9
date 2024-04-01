@@ -12,6 +12,7 @@ var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var User = require('./Users');
 var Movie = require('./Movies');
+var Review = require('./Review');
 
 var app = express();
 app.use(cors());
@@ -159,7 +160,7 @@ router.route('/movies/:title')
                     },
                     {
                         $lookup: {
-                            from: "reviews", // Assuming your reviews collection is named 'reviews'
+                            from: "reviews", 
                             localField: "_id",
                             foreignField: "movieId",
                             as: "reviews"
