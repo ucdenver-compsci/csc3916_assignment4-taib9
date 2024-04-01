@@ -94,42 +94,16 @@ router.route('/movies')
         res.json(o);
         */
        // finding all movies
-       const { reviews } = req.query;
-
-       if (reviews === 'true') {
-           // If the user wants reviews included
-           Movie.aggregate([
-               {
-                   $lookup: {
-                       from: "reviews", // name of the reviews collection
-                       localField: "_id", // field in the movies collection
-                       foreignField: "movieId", // field in the reviews collection
-                       as: "reviews" // output array where the joined reviews will be placed
-                   }
-               }
-           ]).exec((err, moviesWithReviews) => {
-               if (err) {
-                   return res.status(500).json({ success: false, message: 'Failed to aggregate movies with reviews.', error: err });
-               }
-               if (!moviesWithReviews || moviesWithReviews.length === 0) {
-                   return res.status(404).json({ success: false, message: 'No movies found with reviews.' });
-               }
-               // Return the found movies with reviews
-               return res.status(200).json({ success: true, moviesWithReviews: moviesWithReviews });
-           });
-       } else {
-           // If the user doesn't want reviews included, proceed with regular movie retrieval
-           Movie.find({}, (err, movies) => {
-               if (err) {
-                   return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
-               }
-               if (!movies || movies.length === 0) {
-                   return res.status(404).json({ success: false, message: 'No movies found.' });
-               }
-               // Return the found movies
-               return res.status(200).json({ success: true, movies: movies });
-           });
-       }
+        Movie.find({}, (err, movies) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
+            }
+            if (!movies || movies.length === 0) {
+                return res.status(404).json({ success: false, message: 'No movies found.' });
+            }
+            // Return the found movies
+            return res.status(200).json({ success: true, movies: movies });
+        });
     })
     .post(authJwtController.isAuthenticated, async (req, res) => {
         /*
@@ -218,6 +192,42 @@ router.route('/movies/:title')
             res.status(200).send({ message: 'Movie deleted successfully' });
         });
     });
+
+router.route('movies/:id')
+.get(authJwtController.isAuthenticated, async (req, res) => {
+    try {
+        const movieId = req.params.id;
+        let movieAggregate;
+
+        // Check if the reviews query parameter is set to true
+        if (req.query.reviews === 'true') {
+            movieAggregate = await Movie.aggregate([
+                { 
+                    $match: { _id: mongoose.Types.ObjectId(movieId) } 
+                },
+                {
+                    $lookup: {
+                        from: "reviews", // Assuming your reviews collection is named 'reviews'
+                        localField: "_id",
+                        foreignField: "movieId",
+                        as: "reviews"
+                    }
+                }
+            ]);
+        } else {
+            // If reviews query parameter is not true, simply find the movie
+            movieAggregate = await Movie.findById(movieId);
+        }
+
+        if (!movieAggregate) {
+            return res.status(404).json({ success: false, message: 'Movie not found.' });
+        }
+
+        return res.status(200).json({ success: true, movie: movieAggregate });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'Internal server error', error: error });
+    }
+})
 
 router.route('/reviews')
     .get((req, res) => {
