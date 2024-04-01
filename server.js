@@ -145,18 +145,40 @@ router.route('/movies')
 
 router.route('/movies/:title')
     // getting a specific movie
-    .get(authJwtController.isAuthenticated, (req, res) => {
-        // Retrieve the movie based on the title parameter
-        Movie.findOne({ title: req.params.title }, (err, movie) => {
-            if (err) {
-                return res.status(500).send({ message: 'Internal server error' });
+    .get(authJwtController.isAuthenticated, async (req, res) => {
+        try {
+            const movieTitle = req.params.title;
+            let movieAggregate;
+
+            // Retrieve the movie based on the title parameter
+            if (req.query.reviews === 'true') {
+                // If reviews=true, perform aggregation to include reviews
+                movieAggregate = await Movie.aggregate([
+                    {
+                        $match: { title: movieTitle }
+                    },
+                    {
+                        $lookup: {
+                            from: "reviews", // Assuming your reviews collection is named 'reviews'
+                            localField: "_id",
+                            foreignField: "movieId",
+                            as: "reviews"
+                        }
+                    }
+                ]);
+            } else {
+                // If reviews=false or not provided, simply find the movie
+                movieAggregate = await Movie.findOne({ title: movieTitle });
             }
-            if (!movie) {
-                return res.status(404).send({ message: 'Movie not found' });
+
+            if (!movieAggregate) {
+                return res.status(404).json({ success: false, message: 'Movie not found.' });
             }
-            // Return the found movie
-            res.status(200).send({ movie });
-        });
+
+            return res.status(200).json({ success: true, movie: movieAggregate });
+        } catch (error) {
+            return res.status(500).json({ success: false, message: 'Internal server error', error: error });
+        }
     })
     .post(authJwtController.isAuthenticated, (req, res) => {
         var o = getJSONObjectForMovieRequirement(req);
@@ -192,42 +214,6 @@ router.route('/movies/:title')
             res.status(200).send({ message: 'Movie deleted successfully' });
         });
     });
-
-router.route('movies/id/:id')
-.get(authJwtController.isAuthenticated, async (req, res) => {
-    try {
-        const movieId = req.params.id;
-        let movieAggregate;
-
-        // Check if the reviews query parameter is set to true
-        if (req.query.reviews === 'true') {
-            movieAggregate = await Movie.aggregate([
-                { 
-                    $match: { _id: mongoose.Types.ObjectId(movieId) } 
-                },
-                {
-                    $lookup: {
-                        from: "reviews", // Assuming your reviews collection is named 'reviews'
-                        localField: "_id",
-                        foreignField: "movieId",
-                        as: "reviews"
-                    }
-                }
-            ]);
-        } else {
-            // If reviews query parameter is not true, simply find the movie
-            movieAggregate = await Movie.findById(movieId);
-        }
-
-        if (!movieAggregate) {
-            return res.status(404).json({ success: false, message: 'Movie not found.' });
-        }
-
-        return res.status(200).json({ success: true, movie: movieAggregate });
-    } catch (error) {
-        return res.status(500).json({ success: false, message: 'Internal server error', error: error });
-    }
-})
 
 router.route('/reviews')
     .get((req, res) => {
