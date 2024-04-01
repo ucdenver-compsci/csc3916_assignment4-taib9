@@ -231,15 +231,21 @@ router.route('/reviews')
         });
     })
     // post has authentication
-    .post(authJwtController.isAuthenticated, (req, res) => {
+    .post(authJwtController.isAuthenticated, async (req, res) => {
         try {
+            // Check if the movieId provided in the review exists in the database
+            const movieExists = await Movie.exists({ _id: req.body.movieId });
+            if (!movieExists) {
+                return res.status(404).json({ success: false, message: 'Movie not found. Unable to post review.' });
+            }
+
             // Create a new review using the request body
-            const newReview = Review.create(req.body);
+            const newReview = await Review.create(req.body);
             res.status(201).json({ message: 'Review created!', review: newReview });
         } catch (error) {
             res.status(400).json({ message: error.message });
         }
-    })
+    });
 
 app.use('/', router);
 app.listen(process.env.PORT || 8080);
