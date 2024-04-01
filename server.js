@@ -193,7 +193,7 @@ router.route('/movies/:title')
         });
     });
 
-router.route('movies/id/:id')
+router.route('movies/id/:_id')
 .get(authJwtController.isAuthenticated, async (req, res) => {
     try {
         const movieId = req.params.id;
