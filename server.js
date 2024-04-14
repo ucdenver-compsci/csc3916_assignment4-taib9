@@ -144,7 +144,7 @@ router.route('/movies')
         res.status(405).send({ message: 'HTTP method not supported.' });
     });
 
-router.route('/movies/:title')
+router.route('/movies/title/:title')
     // getting a specific movie
     .get(authJwtController.isAuthenticated, (req, res) => {
         // Retrieve the movie based on the title parameter
