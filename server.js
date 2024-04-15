@@ -202,14 +202,14 @@ router.route('/movies/:id')
         // Define aggregation stages based on whether reviews should be included or not
         const aggregationStages = includeReviews ? [
             {
-                $match: { _id: mongoose.Types.ObjectId(movieId) } // Convert movieId to ObjectId
+                $match: { _id: movieId } // Convert movieId to ObjectId
             },
             {
                 $lookup: {
-                    from: "reviews", // Assuming the name of your reviews collection
+                    from: "reviews",
                     localField: "_id",
                     foreignField: "movieId",
-                    as: "reviews"
+                    as: "movieReviews"
                 }
             }
         ] : [
