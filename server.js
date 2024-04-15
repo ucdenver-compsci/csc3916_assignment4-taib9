@@ -194,10 +194,13 @@ router.route('/movies/title/:title')
         });
     });
 
-router.route('/movies/:id')
+router.route('/movies/:_id')
     .get(authJwtController.isAuthenticated, (req, res) => {
-        const movieId = req.params.id;
+        const movieId = req.params._id;
         const includeReviews = req.query.reviews === 'true'; // Check if reviews query parameter is true
+
+        console.log("Req ID:", req.params._id);
+        console.log("Movie ID:", movieId); // Log the movieId to the console
 
         // Define aggregation stages based on whether reviews should be included or not
         const aggregationStages = includeReviews ? [
