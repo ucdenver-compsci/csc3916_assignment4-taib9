@@ -90,21 +90,33 @@ router.post('/signin', function (req, res) {
 
 router.route('/movies')
     .get(authJwtController.isAuthenticated, (req, res) => {
-        /*
-        var o = getJSONObjectForMovieRequirement(req);
-        o.status = 200;
-        o.message = "GET movies";
-        res.json(o);
-        */
-       // finding all movies
-        Movie.find({}, (err, movies) => {
+        const aggregate = [
+            {
+                $lookup: {
+                    from: 'reviews',
+                    localField: '_id',
+                    foreignField: 'movieId',
+                    as: 'movieReviews'
+                }
+            },
+            {
+                $addFields: {
+                    avgRating: { $avg: '$movieReviews.rating' }
+                }
+            },
+            {
+                $sort: { avgRating: -1 }
+            }
+        ];
+
+        Movie.aggregate(aggregate).exec((err, movies) => {
             if (err) {
                 return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
             }
             if (!movies || movies.length === 0) {
                 return res.status(404).json({ success: false, message: 'No movies found.' });
             }
-            // Return the found movies
+            // Return the sorted movies
             return res.status(200).json({ success: true, movies: movies });
         });
     })
