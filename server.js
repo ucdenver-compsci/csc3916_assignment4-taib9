@@ -90,6 +90,7 @@ router.post('/signin', function (req, res) {
 
 router.route('/movies')
     .get(authJwtController.isAuthenticated, (req, res) => {
+    if (req.query.reviews === 'true') {
         const aggregate = [
             {
                 $lookup: {
@@ -108,17 +109,27 @@ router.route('/movies')
                 $sort: { avgRating: -1 }
             }
         ];
-
         Movie.aggregate(aggregate).exec((err, movies) => {
             if (err) {
-                return res.status(500).json({ success: false, message: 'Failed to retrieve movies.', error: err });
+                res.status(500).send(err);
+            } else {
+                res.status(200).json(movies);
             }
-            if (!movies || movies.length === 0) {
-                return res.status(404).json({ success: false, message: 'No movies found.' });
-            }
-            // Return the sorted movies
-            return res.status(200).json({ success: true, movies: movies });
         });
+    } else {
+        Movie.find({
+            title: { $exists: true, $ne: null },
+            releaseDate: { $exists: true, $ne: null },
+            genre: { $exists: true, $ne: null },
+            actors: { $exists: true, $ne: null }
+        }).exec((err, movies) => {
+            if (err) {
+                res.status(500).send(err);
+            } else {
+                res.status(200).json(movies);
+            }
+        });
+    }
     })
     .post(authJwtController.isAuthenticated, async (req, res) => {
         /*
@@ -211,40 +222,42 @@ router.route('/movies/title/:title')
 router.route('/movies/:_id')
     .get(authJwtController.isAuthenticated, (req, res) => {
         const movieId = req.params._id;
-        const includeReviews = req.query.reviews === 'true'; // Check if reviews query parameter is true
-
-        console.log("Req ID:", req.params._id);
-        console.log("Movie ID:", mongoose.Types.ObjectId(movieId)); // Log the movieId to the console
-
-        // Define aggregation stages based on whether reviews should be included or not
-        const aggregationStages = includeReviews ? [
+        const { reviews } = req.query;
+        Movie.find({ _id: movieId }, (err, movie) => {
+        if (err) {
+            res.status(400).send(err);
+        } else if (movie.length === 0) {
+            res.status(404).json({ error: "Movie not found" });
+        } else if (reviews === "true") {
+            Movie.aggregate([
             {
-                $match: { _id: mongoose.Types.ObjectId(movieId) } // Convert movieId to ObjectId
+                $match: { _id: mongoose.Types.ObjectId(movieId) },
             },
             {
                 $lookup: {
-                    from: "reviews",
-                    localField: "_id",
-                    foreignField: "movieId",
-                    as: "movieReviews"
-                }
-            }
-        ] : [
-            {
-                $match: { _id: mongoose.Types.ObjectId(movieId) } // Convert movieId to ObjectId
-            }
-        ];
+                from: "reviews", 
+                localField: "_id", 
+                foreignField: "movieId", 
+                as: "movieReviews", 
+                },
 
-        // Perform aggregation
-        Movie.aggregate(aggregationStages).exec((err, movies) => {
+            },
+            {
+                $addFields: {
+                avgRating: { $avg: '$movieReviews.rating' }
+                }
+            },
+            { $limit: 1 }
+            ]).exec(function (err, result) {
             if (err) {
-                return res.status(500).send({ message: 'Internal server error' });
+                res.status(404).json({ error: "Reviews not found" });
+            } else {
+                res.status(200).json(result[0]);
             }
-            if (!movies || movies.length === 0) {
-                return res.status(404).send({ message: 'Movie not found' });
-            }
-            // Return the found movie or movie with reviews
-            res.status(200).send({ movie: movies[0] });
+            });
+        } else {
+            res.status(200).json(movie);
+        }
         });
     });
 
